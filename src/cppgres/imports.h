@@ -47,6 +47,7 @@ extern "C" {
 #include <nodes/replnodes.h>
 #include <nodes/supportnodes.h>
 #include <nodes/tidbitmap.h>
+#include <nodes/value.h>
 #include <parser/analyze.h>
 #include <parser/parse_func.h>
 #include <parser/parser.h>

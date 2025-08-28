@@ -138,4 +138,20 @@ template <typename T> decltype(auto) tie(T &val) {
   }
 }
 
+template <typename T>
+concept forward_iterator = requires(T t) {
+  ++t;
+  *t;
+  t == t;
+  t != t;
+} && !std::is_pointer_v<T>;
+
+template <typename T>
+concept std_container = requires(T t) {
+  t.begin();
+  t.end();
+  typename T::value_type;
+  typename T::iterator;
+} && !std::is_pointer_v<T> && !std::same_as<T, std::initializer_list<typename T::value_type>>;
+
 } // namespace cppgres::utils

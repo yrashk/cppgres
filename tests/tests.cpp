@@ -30,6 +30,7 @@ PG_MODULE_MAGIC;
 #include "errors.hpp"
 #include "function.hpp"
 #include "heap_tuple.hpp"
+#include "list.hpp"
 #include "memory_context.hpp"
 #include "node.hpp"
 #include "record.hpp"
