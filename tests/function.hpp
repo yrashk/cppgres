@@ -2,6 +2,11 @@
 
 #include "tests.hpp"
 
+struct my_composite_type {
+  std::string s;
+  static cppgres::type composite_type() { return cppgres::named_type("my_composite_type"); }
+};
+
 namespace tests {
 
 // Test signature compliance
@@ -129,18 +134,18 @@ add_test(function_call, ([](test_case &) {
            bool result = true;
 
            {
-             cppgres::function<std::string, int32_t> f("length");
+             cppgres::function<int32_t, std::string> f("length");
              result = result && _assert(f("test") == 4);
            }
 
            {
-             cppgres::function<std::optional<std::string>, std::optional<int32_t>> f("length");
+             cppgres::function<std::optional<int32_t>, std::optional<std::string>> f("length");
              result = result && _assert(f("test").value() == 4);
              result = result && _assert(!f(std::nullopt).has_value());
            }
 
            {
-             cppgres::function<std::string, int32_t> f("pg_catalog", "length");
+             cppgres::function<int32_t, std::string> f("pg_catalog", "length");
              result = result && _assert(f("test") == 4);
            }
 
@@ -151,7 +156,7 @@ add_test(function_call, ([](test_case &) {
              cppgres::internal_subtransaction sub;
              bool exception_raised = false;
              try {
-               cppgres::function<std::int32_t, int32_t> f("length");
+               cppgres::function<int32_t, std::int32_t> f("length");
              } catch (std::exception &e) {
                result =
                    result &&
@@ -166,7 +171,7 @@ add_test(function_call, ([](test_case &) {
              cppgres::internal_subtransaction sub;
              bool exception_raised = false;
              try {
-               cppgres::function<std::string, std::string, int32_t> f("length");
+               cppgres::function<int32_t, std::string, std::string> f("length");
              } catch (std::exception &e) {
                result = result &&
                         _assert(std::string_view("function length(text, text) does not exist") ==
@@ -196,7 +201,7 @@ add_test(function_call, ([](test_case &) {
              cppgres::internal_subtransaction sub;
              bool exception_raised = false;
              try {
-               cppgres::function<std::string, int32_t> f("lengt");
+               cppgres::function<int32_t, std::string> f("lengt");
              } catch (std::exception &e) {
                result = result && _assert(std::string_view("function lengt(text) does not exist") ==
                                           e.what());
@@ -208,8 +213,57 @@ add_test(function_call, ([](test_case &) {
            return result;
          }));
 
+postgres_function(some_composite_type, ([] { return std::vector<my_composite_type>{{"test"}}; }));
+postgres_function(some_composite_type_null,
+                  ([] { return std::vector<std::optional<my_composite_type>>{std::nullopt}; }));
+add_test(a_function_call_proretset, ([](test_case &) {
+           bool result = true;
+
+           {
+             // setof
+             auto generate_series =
+                 cppgres::function<cppgres::set<std::int32_t>, std::int32_t, std::int32_t>(
+                     "generate_series");
+             auto v = generate_series(1, 10);
+             cppgres::set<int> v0{1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+             result = result && _assert(v == v0);
+           }
+
+           {
+             // setof record
+             auto pg_config = cppgres::function<cppgres::set<cppgres::record>>("pg_config");
+             auto v = pg_config();
+           }
+
+           {
+             // setof composite
+             cppgres::spi_executor spi;
+             spi.execute("create type my_composite_type as (s text);");
+             spi.execute(cppgres::fmt::format("create function some_composite_type() returns setof "
+                                              "my_composite_type language c as '{}'",
+                                              get_library_name()));
+             spi.execute(
+                 cppgres::fmt::format("create function some_composite_type_null() returns setof "
+                                      "my_composite_type language c as '{}'",
+                                      get_library_name()));
+             {
+               auto res =
+                   cppgres::function<cppgres::set<my_composite_type>>("some_composite_type")();
+               result = result && _assert(res[0].s == "test");
+             }
+             if (true /*FIXME*/) {
+               // does it handle nulls?
+               auto res = cppgres::function<cppgres::set<std::optional<my_composite_type>>>(
+                   "some_composite_type_null")();
+               result = result && _assert(!res[0].has_value());
+             }
+           }
+
+           return result;
+         }));
+
 // Function that takes a function
-postgres_function(function_arg, ([](cppgres::function<std::string_view, std::int32_t> f,
+postgres_function(function_arg, ([](cppgres::function<std::int32_t, std::string_view> f,
                                     std::string_view s) { return f(s); }));
 
 add_test(function_takes_a_function, ([](test_case &) {

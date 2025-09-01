@@ -30,6 +30,22 @@ postgres_function(custom_type_fun, ([](my_custom_type t) {
                     return t1;
                   }));
 
+postgres_function(custom_type_set, ([](my_custom_type t) {
+                    my_custom_type t1 = t;
+                    std::reverse(t1.s.begin(), t1.s.end());
+                    return std::array{t1};
+                  }));
+
+postgres_function(custom_type_set_null, ([](std::optional<my_custom_type> t) {
+                    if (t.has_value()) {
+                      my_custom_type t1 = *t;
+                      std::reverse(t1.s.begin(), t1.s.end());
+                      return std::array{std::optional(t1)};
+                    } else {
+                      return std::array{t};
+                    }
+                  }));
+
 add_test(
     custom_type, ([](test_case &) {
       bool result = true;
@@ -39,6 +55,13 @@ add_test(
       spi.execute(cppgres::fmt::format(
           "create function custom_type_fun(custom_type) returns custom_type language c as '{}'",
           get_library_name()));
+      spi.execute(cppgres::fmt::format("create function custom_type_set(custom_type) returns setof "
+                                       "custom_type language c as '{}'",
+                                       get_library_name()));
+      spi.execute(
+          cppgres::fmt::format("create function custom_type_set_null(custom_type) returns setof "
+                               "custom_type language c as '{}'",
+                               get_library_name()));
 
       {
         // Ensure the type comes returns well
@@ -56,13 +79,25 @@ add_test(
         auto val = spi.query<my_custom_type>("select custom_type_fun(row('test',1))");
         result = result && _assert(val.begin()[0].s == "tset");
       }
-
       {
         auto val = spi.query<std::tuple<my_custom_type, my_custom_type>>(
             "select custom_type_fun(row('test', 1)), custom_type_fun(row('hi', 1))");
         result = result && _assert(std::get<0>(val.begin()[0]).s == "tset");
         result = result && _assert(std::get<1>(val.begin()[0]).s == "ih");
       }
+      {
+        // setof
+        auto val =
+            spi.query<my_custom_type>("select custom_type_set from custom_type_set(row('test',1))");
+        result = result && _assert(val.begin()[0].s == "tset");
+      }
+      if (false /*FIXME*/) {
+        // setof null
+        auto val = spi.query<std::optional<my_custom_type>>(
+            "select custom_type_set_null from custom_type_set_null(null)");
+        result = result && _assert(!val.begin()[0].has_value());
+      }
+
       return result;
     }));
 

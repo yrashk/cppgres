@@ -37,7 +37,25 @@ add_test(srf, ([](test_case &) {
            return result;
          }));
 
+/*
+postgres_function(srf_optional, ([]() {
+                    std::array<std::optional<std::tuple<int32_t, int32_t>>, 3> tuples{
+                        {{{1, 10}}, {{2, 20}}, {{3, 30}}}};
+                    return tuples;
+                  }));
 
+add_test(srf_optional, ([](test_case &) {
+           bool result = true;
+           cppgres::spi_executor spi;
+           auto stmt = cppgres::fmt::format(
+               "create or replace function srf() returns table (a int, b int) language 'c' as '{}'",
+               get_library_name());
+           spi.execute(stmt);
+           auto res = spi.query<std::tuple<int32_t, int32_t>>("select * from srf()");
+           result = result && _assert(std::get<1>(res.begin()[1]) == 20);
+           return result;
+         }));
+*/
 postgres_function(srf_pfr, ([]() {
                     std::array<srf_pfr_res, 3> results{{{1, 10}, {2, 20}, {3, 30}}};
                     return results;

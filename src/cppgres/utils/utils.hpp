@@ -65,6 +65,7 @@ template <typename T> constexpr std::string_view type_name() {
 
 template <typename T, typename = void> struct tuple_traits_impl {
   using tuple_size_type = std::integral_constant<std::size_t, 1>;
+  using single_value = std::true_type;
 
   template <std::size_t I, typename U = T> static constexpr decltype(auto) get(U &&t) noexcept {
     return std::forward<U>(t);
@@ -81,6 +82,7 @@ template <typename T, typename = void> struct tuple_traits_impl {
 template <typename T>
 struct tuple_traits_impl<T, std::void_t<decltype(std::tuple_size<T>::value)>> {
   using tuple_size_type = std::tuple_size<T>;
+  using single_value = std::false_type;
 
   template <std::size_t I, typename U = T> static constexpr decltype(auto) get(U &&t) noexcept {
     return std::get<I>(std::forward<U>(t));
@@ -94,6 +96,7 @@ struct tuple_traits_impl<T, std::void_t<decltype(std::tuple_size<T>::value)>> {
 #if CPPGRES_USE_BOOST_PFR
 template <typename T> struct tuple_traits_impl<T, std::enable_if_t<std::is_aggregate_v<T>>> {
   using tuple_size_type = boost::pfr::tuple_size<T>;
+  using single_value = std::false_type;
 
   template <std::size_t I, typename U = T> static constexpr decltype(auto) get(U &&t) noexcept {
     return boost::pfr::get<I>(std::forward<U>(t));

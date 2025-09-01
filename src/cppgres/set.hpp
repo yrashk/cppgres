@@ -4,6 +4,7 @@
 #pragma once
 
 #include <iterator>
+#include <unordered_set>
 
 #include "datum.hpp"
 #include "imports.h"
@@ -28,5 +29,10 @@ template <typename I> requires datumable_iterator<I>
 struct type_traits<I> {
   bool is(type &t) { return t.oid == RECORDOID; }
 };
+
+// FIXME: std::vector here is a relatively temporary workaround
+// until we come up with a different version of it – perhaps even
+// a generating iterator?
+template <typename T> using set = std::vector<T>;
 
 } // namespace cppgres

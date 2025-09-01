@@ -85,6 +85,7 @@ struct nullable_datum {
   explicit nullable_datum() : _ndatum({.isnull = true}) {}
 
   explicit nullable_datum(::Datum d) : _ndatum({.value = d, .isnull = false}) {}
+  explicit nullable_datum(::Datum d, bool isnull) : _ndatum({.value = d, .isnull = isnull}) {}
   explicit nullable_datum(datum d) : _ndatum({.value = d._datum, .isnull = false}) {}
 
   bool operator==(const nullable_datum &other) const {
@@ -95,6 +96,13 @@ struct nullable_datum {
       return is_null();
     }
     return _datum.operator==(other._datum);
+  }
+
+  nullable_datum(const nullable_datum &) = default;
+
+  void operator=(::Datum datum) {
+    _ndatum.value = datum;
+    _ndatum.isnull = false;
   }
 
 private:
