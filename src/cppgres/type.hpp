@@ -180,6 +180,10 @@ template <flattenable T> struct expanded_varlena : public varlena {
     if (detoasted_value.has_value()) {
       return detoasted_value.value()->inner;
     } else {
+      if (VARATT_IS_EXTERNAL_EXPANDED(ptr())) {
+        detoasted_value = reinterpret_cast<expanded *>(DatumGetEOHP(value_datum));
+        return detoasted_value.value()->inner;
+      }
       auto *ptr1 = reinterpret_cast<std::byte *>(varlena::operator void *());
       auto ctx = memory_context(std::move(alloc_set_memory_context()));
       auto *value = new (ctx.alloc<expanded>())
